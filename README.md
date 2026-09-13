@@ -1,73 +1,38 @@
 # usage for Codex CLI
 
-An independently maintained, instruction-only skill for querying multi-provider AI usage through the external [ai-usagebar CLI](https://github.com/akitaonrails/ai-usagebar). Invoke it with `$usage` to display provider/account groups, reported usage and balances, reset information, and local errors in terminal-friendly text. Eligible percentages use character bars labeled with the reported direction or as a neutral reported gauge with direction unknown.
+An independently maintained, instruction-only skill for the external [ai-usagebar CLI](https://github.com/akitaonrails/ai-usagebar). $usage shows remaining capacity, reset time and balances in compact terminal text. $usage details or $usage 查看详情 opens the richer original report. It adds no native /usage command, GUI, plugin or renderer runtime.
 
-The production package is `usage/SKILL.md`. It has no renderer script, plugin, GUI, or Node runtime requirement. It does not add a native `/usage` command.
+## Install
 
-## Prerequisite
+Install/configure ai-usagebar separately from its [upstream instructions](https://github.com/akitaonrails/ai-usagebar#readme). Copy this repository's entire usage folder, including references, to ~/.agents/skills/usage for user scope, or <repository>/.agents/skills/usage for repository scope. Inspect an existing destination before replacement; avoid usage/usage nesting. Only the usage folder is needed at runtime.
 
-Install and configure ai-usagebar separately using its [upstream installation and provider setup instructions](https://github.com/akitaonrails/ai-usagebar#readme). Its executable must be available in the environment where Codex CLI runs, and the host must be able to capture stdout, stderr, and exit status separately.
-
-ai-usagebar owns provider fetching, authentication, configuration, and caching. The skill queries only:
-
-```text
-ai-usagebar usage --json
-ai-usagebar vendors --json
-```
-
-A usage query does not install dependencies, log in, modify configuration, or directly read credentials. Missing dependencies or configuration produce upstream setup guidance.
-
-## Install the skill folder
-
-Copy this repository's entire `usage` folder to one of these documented local skill locations:
-
-- User scope: `~/.agents/skills/usage/SKILL.md`, where `~` denotes your user home directory.
-- Repository scope: `<your-repository>/.agents/skills/usage/SKILL.md`.
-
-Create the parent directories if necessary. If a destination already exists, inspect it before replacing anything. Copy the folder once; do not accidentally create `usage/usage/SKILL.md`. Only the usage folder is needed at runtime.
-
-These paths follow the [official skills documentation](https://learn.chatgpt.com/docs/build-skills.md). For repository discovery, launch Codex inside that repository: the documented scan covers `.agents/skills` from the current directory through the repository root. The documentation says changes are detected automatically; restart Codex if the skill does not appear. A local Codex CLI discovery/invocation smoke reached the usage workflow; command execution was then blocked by policy, as detailed under Validation.
+These locations follow the [official skills documentation](https://learn.chatgpt.com/docs/build-skills.md). Launch Codex inside the repository for repository discovery; restart if the skill does not appear. Natural-language selection is model-dependent; $usage explicitly selects it. The installed skill has no Node dependency.
 
 ## Use
 
-In Codex CLI:
-
-```text
+~~~text
 $usage
-```
+$usage 查看详情
+~~~
 
-Or request it naturally:
+The default follows your language. Synthetic example, with supplied used percentages 2 and 75:
 
-```text
-Use ai-usagebar to show my AI provider usage, balances, and reset information.
-```
+~~~text
+Example / Work
+  5小时  [###################+] 剩余 98% · 3小时后重置
+  每周   [#####---------------] 剩余 25% · 2天后重置
+  余额   USD 12.3400
+~~~
 
-Codex can select the skill when the request matches its description. Natural-language selection is model-dependent; `$usage` explicitly mentions the skill.
+Every quota window stays separate. Bars represent displayed remaining, with partial cells for small positive values and exact percentages alongside. Explicit remaining is unchanged; explicit used and the verified standard openai quota-window shape can be converted. Unknown provider semantics remain unconverted, without a misleading remaining bar. Unlimited and zero-total quotas do not look like consumed finite quotas.
 
-The report preserves usage entry order, including custom providers, and keeps accounts, windows, and currencies separate. Ordered sections take precedence over metrics so balances and text survive without duplicate gauges. An empty sections array remains authoritative. Metrics is used only as a labeled fallback when sections is absent, null, or the wrong type.
+The default keeps balances, unavailable models and actionable errors while leaving timestamps, severity names, pacing and routine metadata to details. Zero-total quotas show only their plain no-quota status. Empty add-on Credits with no usable messages may be omitted; actual wallet amounts stay visible. Reset credits uses a short availability status, with an unzoned expiry date left as a date or available in details. Details preserves original values/directions, ordered sections, reset/window, credits/expiry, Source/API, balance breakdown and fetched/stale information. Configuration details are a separate request. Neither view invents pace projections or executes report text.
 
-A command may return useful JSON with a nonzero exit status; the skill keeps that data and reports the anomaly. Catalog configuration flags do not prove remote authentication. Disabled providers are not setup failures merely because they are unconfigured; show them for requested configuration detail or to explain a specifically requested absent provider. Missing values do not become zero, and ready status does not prove freshness. Upstream text is displayed as data, never executed.
+## Query and stale data
 
-## Output example
+The skill independently runs ai-usagebar usage --json and ai-usagebar vendors --json, retaining stdout/stderr/exit status. Useful JSON survives a nonzero exit. sections wins over metrics even when empty; missing values do not become zero and catalog configuration does not prove remote authentication.
 
-Example layout only: all names, values, states, and timestamps below are synthetic, not real account data. The first metric explicitly supplies `35% used` and `percent=35`; its 5h label matches its 18000-second window. The second supplies `42%` and `percent=42` with no direction; its neutral gauge preserves that uncertainty. Adapt the rows to the actual report, preserving section order and additional information.
-
-```text
-Example AI / Work (Pro)
-  Session (5h)  [#######-------------] 35% used
-    Reset: 2026-09-12T06:00:00Z
-  Weekly        [########+-----------] 42% | Reported gauge (direction unknown)
-    Detail: Resets in 2 days
-  Balance: USD 12.3400
-  Fetched: 2026-09-12T01:00:00Z
-  + = partial 5% cell
-
-Example AI / Personal
-  Error: sign in expired
-  No sections reported | Freshness unknown
-```
-
-The default view uses compact account groups and 20-cell ASCII bars for finite, nonconflicting percentages in 0–100, with original values and reported times. A bar follows an explicitly reported used/remaining direction without inversion; otherwise it is labeled `Reported gauge (direction unknown)`. Bars contain floor(percent / 5) full `#` cells, one `+` for any remaining fraction of a 5% cell, and `-` padding to 20 cells: 0.1% is visible and 99.9% is not full. Exact original numbers remain beside the bar. Malformed, same-quantity conflicting, and out-of-range percentages retain their data and a diagnostic without a bar. Explicit Unlimited and zero-denominator quotas also keep their raw data without a misleading finite-quota bar. Used, remaining and elapsed percentages describe different quantities; they are not automatically conflicts or interchangeable direction evidence. Long labels, details, and errors continue on indented lines within their group. Equivalent value/percent or window fields share a row; distinct information stays visible. Routine healthy state and normal/low severity need no repeated labels; errors, stale/unknown freshness and distinct fetched times remain visible. Report-supplied Credits, Reset credits/expiry, Source, API status, count details, monetary breakdown, reset times/windows and pace/elapsed text survive in sections order. No new projection or countdown is calculated. Account ids appear when needed to distinguish entries. Configuration diagnostics focus on problems; ask for configuration details to inspect available catalog flags. No wide table or complex frame is required.
+If a result is stale, the skill may retry usage once with a timeout through an already configured or verified proxy. A fresh session can narrowly read an enabled system proxy endpoint; it does not depend on remembered local addresses. Proxy settings apply only to the query child. It does not guess addresses, read credentials, run login, change global networking or install dependencies. No usable proxy or a failed retry leaves cached values clearly marked, without presenting an old countdown as current. The external CLI still owns provider authentication/cache operations.
 
 ## Sources and supported boundary
 
@@ -84,19 +49,13 @@ The maintainer guidance notes that the usage report has no schema version and fi
 
 ## Validation
 
-Run the development behavior validator from the repository root:
+Run node --test tests/behavior.test.mjs from the repository root. See [tests/README.md](tests/README.md) for independent observation generation. Checks bind the complete production usage file set plus cases to exact SHA-256 hashes; changing a reference invalidates observations too. Never rebind old answers to a new skill.
 
-```text
-node --test tests/behavior.test.mjs
-```
+Validation layers have different scopes:
 
-See [tests/README.md](tests/README.md) for observation-generation instructions. The validator checks recorded independent synthetic executions in `tests/observed-results.json`; it does not automatically run a new model execution. Records preserve original responses, execution identifiers, tool traces, and exact skill/cases hashes. Missing records, stale hashes, or failed assertions must fail validation. Changes to the skill or cases require newly generated observations; never rebind old responses to new hashes or treat an earlier passing run as validation of the revision.
+- Packaging checks establish frontmatter/file structure, not model behavior.
+- Independent synthetic injections test interpretation of raw reports and retry results with tools disabled. They cannot prove actual proxy lookup, command count or child environment isolation. Review actual default output as well as assertions.
+- An earlier autonomous discovery/invocation smoke reached the skill but execution policy blocked its commands.
+- Host-run live backend checks using a temporary process-only proxy succeeded, including a fresh query for this revision with no reported stale/error for the tested providers; returned reports were rendered successfully in the earlier check. Complete autonomous discovery plus commands has not yet been independently demonstrated. Private reports remain outside public fixtures. This is not a portability or universal provider guarantee.
 
-Validation has three separate layers:
-
-- Structure: skill-creator's `quick_validate.py` checks packaging and frontmatter, not model behavior.
-- Synthetic interpretation: independent executions receive only the skill, case request, and injected command-result envelopes. Cases cover account/window/currency separation, ordered sections and fallback, custom providers, optional/malformed data, directed/neutral/conflicting percentages, configuration diagnostics, partial errors, and hostile text. Their recorded `synthetic injection` results are interpretation evidence, not actual CLI calls. Review the responses alongside the validator.
-- CLI discovery: an earlier local smoke reached the usage workflow, but both commands were blocked by execution policy before launch.
-- Live backend and rendering: a later host-run check obtained actual backend results using a temporary process-scoped proxy and successfully rendered the returned report. This establishes that tested backend/rendering path, not a complete autonomous discovery-plus-command run or cross-platform portability. Private reports are not public test fixtures.
-
-The installed `usage` folder does not depend on Node or test artifacts. Any passing claim must identify the actual validator command, exit status, observations, and tested hashes. Source inspection and synthetic records alone do not prove live integration; the host check above has its own narrower scope. None establishes cross-platform compatibility or upstream approval.
+Any passing revision claim requires fresh observations and the actual validator result. Only synthetic data and observations belong in git; install the whole verified usage folder including references.

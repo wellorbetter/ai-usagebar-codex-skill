@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 
 const here = new URL('.', import.meta.url);
@@ -12,11 +12,16 @@ const cases = JSON.parse(casesBytes).cases;
 const observed = JSON.parse(read('observed-results.json'));
 assert.equal(observed.skill_sha256, hash(read('../usage/SKILL.md')), 'Skill changed: obtain new observations');
 assert.equal(observed.cases_sha256, hash(casesBytes), 'Cases changed: obtain new observations');
+const usageRoot = new URL('../usage/', here);
+const usageFiles = (prefix='') => readdirSync(new URL(prefix,usageRoot),{withFileTypes:true}).flatMap(d => d.isDirectory() ? usageFiles(prefix+d.name+'/') : [prefix+d.name]).sort();
+const usageHashes = Object.fromEntries(usageFiles().map(p=>[p,hash(readFileSync(new URL(p,usageRoot)))]));
+assert.deepEqual(observed.usage_files_sha256,usageHashes,'Production skill files changed: obtain new observations');
 const requiredIds = [
   'accounts_windows_balances', 'partial_nonzero', 'fallback_and_edges', 'empty_report',
   'missing_command', 'missing_config', 'invalid_usage', 'vendors_failure', 'all_failed',
   'untrusted_fields', 'source_neutral_catalog', 'conflicts_layout_catalog',
-  'partial_cell_boundaries', 'source_rich_quota_semantics'
+  'partial_cell_boundaries', 'source_rich_quota_semantics',
+  'compact_source', 'compact_direction_edges', 'compact_refresh_mixed', 'compact_stale_no_proxy'
 ];
 assert.ok(Array.isArray(cases));
 assert.equal(new Set(cases.map(c => c.case_id)).size, cases.length, 'Duplicate fixture case_id');
@@ -128,12 +133,35 @@ const wrappedField = (text, value) => {
   for (const line of lines.slice(1)) has(line, /^ +\S/);
 };
 
+const compactCheck = text => {
+  lacks(text,/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}|\b(?:severity|fetched_at|reported gauge|direction unknown|elapsed|steady pace|Breakdown)\b|图例|partial 5%|健康状态|方向未知/i);
+  lacks(text,/^\s*(?:Source|API|Fetched|Status)\s*[:：]/im);
+  assert.ok((text.match(/\$usage\s*(?:details|查看详情)/gi)??[]).length<=1,'Repeated detail hint');
+  has(text,/剩余|额度|配额|余额|缓存|旧|不可用/);
+};
+const section=(text,startPattern,endPattern)=>{
+  const start=startPattern.exec(text); assert.ok(start,'Missing compact row '+startPattern);
+  const tail=text.slice(start.index+start[0].length);
+  const end=endPattern?.exec(tail);
+  if(endPattern) assert.ok(end,'Missing next compact row '+endPattern);
+  return text.slice(start.index,end ? start.index+start[0].length+end.index : undefined);
+};
+const remainingCheck=(text,p)=>{
+  const values=[...text.matchAll(/(?:^|[^\d.])(\d+(?:\.\d+)?)\s*%/g)].map(m=>Number(m[1]));
+  assert.ok(values.includes(p),'Missing exact remaining percentage '+p);
+  has(text,/剩余|remaining|left/i); barCheck(text,p);
+};
 for (const c of cases) test(c.case_id, () => {
   for (const command of ['usage', 'vendors']) {
     const result = c[command];
     assert.equal(typeof result.stdout, 'string');
     assert.equal(typeof result.stderr, 'string');
     assert.ok(result.exit_code === null || Number.isInteger(result.exit_code));
+  }
+  if(c.retry_usage) {
+    assert.equal(typeof c.retry_usage.stdout,'string');
+    assert.equal(typeof c.retry_usage.stderr,'string');
+    assert.ok(c.retry_usage.exit_code===null || Number.isInteger(c.retry_usage.exit_code));
   }
   const r = byId.get(c.case_id);
   assert.ok(r, 'Missing case observation');
@@ -266,6 +294,50 @@ for (const c of cases) test(c.case_id, () => {
       lacks(t,/projected (?:usage|consumption)|will (?:hit|reach|exhaust)|预计.*(?:耗尽|用完)|预测.*(?:用量|消耗)/i);
       break;
     }
+    case 'compact_source': {
+      compactCheck(t);
+      const codex=group(t,'Codex / Work','Copilot / Work'), cp=group(t,'Copilot / Work','DeepSeek / Work'), ds=group(t,'DeepSeek / Work');
+      remainingCheck(section(codex,/(?:Codex\s*)?5h|5\s*小时|5\s*小时额度/i,/weekly|周额度|每周|周配额/i),98);
+      remainingCheck(section(codex,/weekly|周额度|每周|周配额/i,/Credits|余额|信用|点数/i),25);
+      literal(codex,'USD 17.4200'); literal(codex,'Model-Z');
+      const resetCredit=section(codex,/Reset credits|重置(?:额度|次数|积分|点数)/i,/Unavailable|不可用|Model-Z/i);
+      has(resetCredit,/2/); has(resetCredit,/可用|剩余|available/i);
+      lacks(resetCredit,/03:00|时区|timezone|UTC|GMT|Z\b/i);
+      has(codex,/不可用|暂不可|满|capacity|unavailable/i);
+      const counted=section(cp,/Premium requests|高级请求|高级额度/i,/Chat|聊天/i);
+      has(counted,/75/); has(counted,/剩余|remaining|left/i); barCheck(counted,75,false);
+      const unlimited=section(cp,/Chat|聊天/i,/Completions|补全/i); noBar(unlimited); has(unlimited,/不限|无限|unlimited/i);
+      const zero=section(cp,/Completions|补全/i); noBar(zero); has(zero,/未分配|无.*(?:额度|配额)|没有.*(?:额度|配额)|no.*quota|unallocated/i); lacks(zero,/耗尽|用尽|exhausted|0\s*(?:\/|of)\s*0|100\s*%|报告值|reported\s*(?:value|percent)|severity/i);
+      lacks(cp,/\bCredits\b|额外积分|balance:\s*0|0-0|local messages|cloud messages/i);
+      literal(ds,'CNY 48.1200'); lacks(ds,/(?<![\d.])(?:40\.0000|8\.1200)(?![\d.])/);
+      lacks(t,/Local cache snapshot|20-30/);
+      has(codex,/重置|恢复|reset/i);
+      break;
+    }
+    case 'compact_direction_edges': {
+      compactCheck(t);
+      const edges=group(t,'Edges / Work','Codex / Custom'), custom=group(t,'Codex / Custom');
+      remainingCheck(group(edges,'Small remainder','Already remaining'),2);
+      remainingCheck(group(edges,'Already remaining','Empty remaining'),35);
+      remainingCheck(group(edges,'Empty remaining','Full remaining'),0);
+      remainingCheck(group(edges,'Full remaining','Conflicting figures'),100);
+      const conflict=group(edges,'Conflicting figures','Access note'); noBar(conflict); has(conflict,/10/); has(conflict,/20/); has(conflict,/不一致|冲突|矛盾|conflict|inconsistent/i);
+      literal(edges,'EUR 8.2500'); literal(custom,'12%'); noBar(custom); lacks(custom,/88%|剩余\s*12|12%\s*剩余/);
+      break;
+    }
+    case 'compact_refresh_mixed': {
+      compactCheck(t);
+      const a=group(t,'Account A','Account B'), b=group(t,'Account B','Account C'), cc=group(t,'Account C');
+      remainingCheck(a,80); lacks(a,/10%|旧数据|缓存|timeout/i);
+      remainingCheck(b,40); has(b,/缓存|旧|cached|stale/i); has(b,/失败|超时|timeout|fail/i);
+      remainingCheck(cc,50); has(cc,/缓存|旧|cached|stale/i);
+      lacks(t,/1h 11m|1小时11|1 小时 11/);
+      lacks(t,/全部.*(?:最新|刷新成功)|all.*(?:fresh|updated)/i);
+      break;
+    }
+    case 'compact_stale_no_proxy':
+      compactCheck(t); remainingCheck(t,70); has(t,/缓存|旧|cached|stale/i); has(t,/代理|proxy/i);
+      lacks(t,/1h 11m|1小时11|1 小时 11|刷新成功|refresh succeeded/i); break;
     case 'empty_report':
       has(t,/empty|no (?:usage|entries|providers)|nothing reported|空|没有|无.*(?:条目|使用量|提供商)/i);
       lacks(t,/\b0%/); noBar(t); break;
