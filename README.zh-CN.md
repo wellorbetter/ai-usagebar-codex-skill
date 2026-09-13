@@ -69,7 +69,7 @@ ai-usagebar vendors --json
 将下面这段内容粘贴到 **Codex 对话中**，不要作为 shell 命令运行：
 
 ```text
-$skill-installer Install the usage skill from https://github.com/wellorbetter/ai-usagebar-codex-skill/tree/main/usage
+$skill-installer Install the entire usage skill from https://github.com/wellorbetter/ai-usagebar-codex-skill/tree/main/usage, including scripts and references. Confirm the files were copied, say separately whether the backend was actually tested, and tell me to try $usage next turn. If it is not detected, suggest restarting Codex. Do not install runtimes or change global configuration.
 ```
 
 <details>
@@ -81,7 +81,7 @@ $skill-installer Install the usage skill from https://github.com/wellorbetter/ai
 git clone https://github.com/wellorbetter/ai-usagebar-codex-skill.git
 ```
 
-将**整个 `usage` 文件夹**（包括 `references`）复制到以下任一位置：
+将**整个 `usage` 文件夹**（包括 `scripts` 和 `references`）复制到以下任一位置：
 
 | 生效范围 | 安装位置 |
 | --- | --- |
@@ -95,6 +95,8 @@ Windows 中的 `~` 指用户目录，例如 `C:\Users\you`。父文件夹不存�
 ```text
 .agents/skills/usage/
 ├── SKILL.md
+├── scripts/
+│   └── render.mjs
 └── references/
     └── report.md
 ```
@@ -103,7 +105,11 @@ Windows 中的 `~` 指用户目录，例如 `C:\Users\you`。父文件夹不存�
 
 </details>
 
-安装位置和安装器用法依据 [Codex 官方 skills 指南](https://learn.chatgpt.com/docs/build-skills)（英文）。若 skill 未出现，请重启 Codex。安装在单个仓库时，应从该仓库内启动 Codex。
+安装位置和安装器用法依据 [Codex 官方 skills 指南](https://learn.chatgpt.com/docs/build-skills)（英文）。Codex 会自动检测新安装和更改的 skill；下一轮先试 `$usage`，若未识别再重启 Codex。安装在单个仓库时，应从该仓库内启动 Codex。
+
+**安装完成后：** 确认整个 skill 文件夹已就位，下一轮在 Codex 中输入 $usage；未识别时再重启。文件已复制不代表后端或账户已验证，首次查询会分别检查这些问题。
+
+已有 Node.js 20+ 时可使用随 skill 提供的彩色渲染脚本。没有 Node 仍会得到完整纯文本报告，查询不会替你安装运行时。
 
 ### 3. 查看用量
 
@@ -129,6 +135,12 @@ Codex 会查询后端并返回易读的报告。`$usage` 是 Codex 内的 skill 
 
 **如何刷新：** 每次调用都会查询 ai-usagebar，由后者负责获取数据和缓存。若结果已过期，skill 可以通过已有的可用代理重试一次；再次失败时，展示可用的缓存值并简要说明原因。它是按需查询报告，再次输入 `$usage` 即可重新检查。
 
+### 颜色与折叠输出
+
+随 skill 提供的脚本可在兼容的 Codex CLI 中显示彩色工具输出。最终回答始终保留完整纯文本报告，工具卡片折叠也不会让关键信息不可见。已测试的 Windows CLI 0.154.0-alpha.6.2 可用 Ctrl+T 展开记录，其他版本可能不同。上方预览是合成数据示意，不保证终端配色完全一致。
+
+明确要求纯文本或不要颜色时，skill 会关闭脚本颜色。自动模式遵守 NO_COLOR、TERM=dumb 和终端检测；对已确认兼容的 Codex 工具视图，skill 可以单次显式请求颜色，以应对 Codex 向工具子进程注入的禁色默认值。父级 TUI 仍决定实际显示效果。skill 不会修改环境或 Codex 配置；若你自行调整了继承的终端设置，再重启相关父终端/Codex 进程以加载变化。纯文本报告正常时，无需仅因没有颜色而重启。
+
 ## 排错
 
 | 遇到的情况 | 检查方法 |
@@ -138,9 +150,10 @@ Codex 会查询后端并返回易读的报告。`$usage` 是 Codex 内的 skill 
 | 服务商提示需要配置或登录 | 按[上游配置文档](https://github.com/akitaonrails/ai-usagebar/blob/main/docs/configuration.md)操作，再运行 `$usage`。 |
 | 显示缓存数据或刷新错误 | 检查后端网络连接和已有代理设置；用 `$usage details` 查看诊断。 |
 | 缺少某个服务商或额度窗口 | 直接检查 `ai-usagebar usage --json`。skill 只能展示后端返回的数据。 |
+| 没有颜色或脚本不可用 | 纯文本报告仍然完整。可检查已有 Node.js 20+、安装的 scripts 文件夹和 NO_COLOR/TERM 设置；颜色问题与后端配置分开处理。 |
 | 某个值没有剩余额度条 | 其含义可能未知、存在冲突，或属于无限额度、未分配额度；详情中可查看源数据。 |
 
-更新手动安装的版本时，先备份本地修改，再获取最新仓库版本并替换已安装的 `usage/` 文件夹。请始终将 `SKILL.md` 和 `references/report.md` 一起更新。
+更新手动安装的版本时，先备份本地修改，再获取最新仓库版本并替换已安装的 `usage/` 文件夹。请始终将 `SKILL.md`、`scripts/` 和 `references/` 一起更新。原先通过安装器安装的版本也采用此备份后整目录替换方式；安装器可能拒绝已存在的目标目录，而不是直接更新。下一轮尝试 `$usage`，未识别更新时再重启 Codex。
 
 ## 工作原理
 
@@ -153,10 +166,10 @@ Codex 会查询后端并返回易读的报告。`$usage` 是 Codex 内的 skill 
 使用 skill 无需构建项目。若要在本地检查已记录的行为，请先安装 Node.js，再从仓库根目录运行：
 
 ```sh
-node --test tests/behavior.test.mjs
+node --test tests/behavior.test.mjs tests/renderer.test.mjs
 ```
 
-测试检查 18 个已记录的合成用例，涵盖剩余额度、余额、缓存数据、部分失败和恶意输入。它验证保存的观察结果，不会查询你的账户或发起新的模型运行。修改 skill 或参考文件前，请先阅读[测试指南](tests/README.md)（英文）。
+测试运行渲染器与控制字符输入检查，并检查 18 个已记录的合成用例，涵盖剩余额度、余额、缓存数据、部分失败和恶意输入。它验证保存的观察结果，不会查询你的账户或发起新的模型运行。修改 skill 或参考文件前，请先阅读[测试指南](tests/README.md)（英文）。
 
 终端展示或 skill 指令的问题，请[在本仓库提交 issue](https://github.com/wellorbetter/ai-usagebar-codex-skill/issues)；服务商集成和后端数据的问题，请使用 [ai-usagebar 的 issue 跟踪页](https://github.com/akitaonrails/ai-usagebar/issues)。反馈时请提供合成或已脱敏的示例。
 

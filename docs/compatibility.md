@@ -44,3 +44,14 @@ A tool-enabled Windows `codex exec --yolo --ephemeral` run also discovered the i
 That live check supplied the existing proxy and backend PATH to the child environment. It verifies that tested invocation/query path, not autonomous system-proxy discovery, every provider, or other platforms. Earlier blocked attempts are historical checks, not the current verification result. Private account reports remain outside this repository.
 
 For the executable behavior rules, see [SKILL.md](../usage/SKILL.md) and [report reference](../usage/references/report.md).
+
+
+## Optional display renderer and reload
+
+The installed usage/scripts/render.mjs uses Node.js 20+ with no npm packages. It receives prepared display blocks, not raw backend reports, and does not calculate quota direction, fetch providers or inspect credentials. Invalid input has no partial stdout; the skill retains a complete plain final report. Missing Node does not prevent a normal query. Source controls are escaped, while only the fixed trusted palette emits SGR sequences. See the report reference for the strict stdin contract and limits.
+
+auto color follows TTY detection and respects nonempty NO_COLOR and TERM=dumb. Explicit always emits fixed SGR regardless of those defaults; never is unconditionally plain. This follows [NO_COLOR FAQ 2](https://no-color.org/), which allows per-instance command arguments to override environment defaults. The tested Codex CLI injects NO_COLOR=1/TERM=dumb into tools even with a color-capable parent. Thus the skill selects always only for a known capable Codex view with no user plain/no-color request; it does not equate injected tool values with user preference. No environment or global settings are changed. Parent TUI policy can still suppress visible colors. Color is redundant presentation, never the only way to understand an error or quota.
+
+A 2026-09-14 synthetic ConPTY experiment in Windows CLI 0.154.0-alpha.6.2 preserved tool stdout RGB in terminal cells. It folded long output; Ctrl+T exposed the full transcript. That experiment used a controlled child environment and did not establish every version or the newly bundled script's end-to-end behavior. Normal assistant Markdown did not inherit arbitrary tool colors. Independent renderer tests and a fresh installed smoke supply separate evidence for this revision; do not infer their success from the earlier experiment.
+
+Codex documents automatic skill detection after install/update. Try $usage next turn; restart if not detected. Parent-process environment changes need a new process to be inherited. Installation confirmation should distinguish copied files from a backend that has actually been queried. Both READMEs include this handoff in their installer prompt and completion instructions.

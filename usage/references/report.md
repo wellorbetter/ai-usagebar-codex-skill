@@ -90,3 +90,29 @@ Example AI / Personal
   Error: sign in expired
   No sections reported | Freshness unknown
 ```
+
+
+## Bundled display renderer contract
+
+This optional presentation step does not change any quota, account, refresh or detail rule above. Node.js 20+ runs the installed scripts/render.mjs with stdin UTF-8 JSON and an optional --color=auto|always|never argument. The CLI reads no file arguments, fetches nothing and executes no source strings. Invalid input exits nonzero with a generic stderr message and no report on stdout; use the prepared plain report instead.
+
+The object has exactly version: 1 and blocks: an ordered array. Each block is one of:
+
+- heading: {type: "heading", text: string, accent?: "mint"|"violet"|"blue"|"neutral"}.
+- line: {type: "line", segments: [{text: string, role?: "plain"|"muted"|"accent"|"warning"|"error"}]} with at least one segment.
+- blank: {type: "blank"}.
+
+No arbitrary properties, RGB codes, ANSI templates or source-supplied paths are accepted. Headings default to mint; line accent uses its preceding heading. Colors distinguish headings and existing warnings/errors, never establish provider identity or infer a quota. Keep warning meaning in text too. Lines receive two leading spaces; segment text is joined verbatim. Prepare label spacing and bars using the existing report rules. Use one block for each intended output line; preserve ordered detail block lines without embedding layout newlines inside a string. No automatic content truncation or word wrapping occurs.
+
+All supplied C0/C1/DEL, bidi controls, Unicode line separators and lone surrogate code units become visible Unicode escape notation. Ordinary Unicode and original numerical text remain. The script alone generates a fixed SGR palette; stripping those SGR sequences gives the exact plain output. The limit is 1 MiB UTF-8 input and 10,000 combined blocks/segments; excessive input falls back to the complete plain report rather than silently dropping data. An empty block array prints "No report content." and does not infer zero usage.
+
+Synthetic input (these are prepared display values, not raw backend JSON):
+
+~~~json
+{"version":1,"blocks":[{"type":"heading","text":"Example / Work","accent":"mint"},{"type":"line","segments":[{"text":"5h [###################+] 98% remaining","role":"accent"},{"text":" · resets in 3h","role":"muted"}]}]}
+~~~
+
+Prefer a structured process tool that passes this JSON as stdin with separate executable/arguments. A saved private temporary file must be streamed via the host's safe file APIs, never inserted into a shell expression as JSON. No sample input here is an instruction to store private usage in the skill folder. The plain final answer remains complete because tool-output folding and color support vary by Codex version.
+
+
+Color policy: auto honors nonempty NO_COLOR, TERM=dumb and stdout TTY detection. Explicit --color=always emits the fixed SGR palette even in a captured tool environment with those defaults, following the per-instance override described in [NO_COLOR FAQ 2](https://no-color.org/). --color=never is unconditionally plain. The skill selects always only for known ANSI-capable Codex tool output and no user plain/no-color request; an explicit user plain preference selects never. No environment is modified. Producing SGR does not guarantee that the parent TUI will display colors.

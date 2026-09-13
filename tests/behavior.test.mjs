@@ -50,7 +50,7 @@ const barCheck = (text, percent, required = true) => {
   for (const b of found) assert.equal(b, '#'.repeat(fill) + '+'.repeat(partial) + '-'.repeat(20-fill-partial), 'Incorrect 20-cell bar');
 };
 const noBar = text => lacks(text, /[#█▓■=]{3,}|\[[#+.\- ]{5,}\]/);
-const unknown = /unknown|unavailable|not (?:provided|reported)|missing|未知|未提供|未报告|缺失|无法确定|不明/i;
+const unknown = /unknown|unavailable|not (?:provided|reported|supplied)|missing|未知|未提供|未报告|缺失|无法确定|不明/i;
 const failure = /error|fail|invalid|unavailable|异常|错误|失败|无效|不可用|无法/i;
 const config = /config|credential|配置|凭据/i;
 
@@ -103,10 +103,14 @@ const terminalCheck = (text, caseId) => {
       if(/^\S/.test(lines[row])) groupStart=row;
       const line=lines[row];
       if(removed || !/^\s*(?:stdout\b|(?:invalid|failed|error|malformed)\s+(?:JSON\s+)?stdout\b|JSON\s+stdout\b)/i.test(line)
-        || !/JSON/i.test(line) || !failure.test(line)) continue;
-      const local=lines.slice(groupStart,row+1).join('\n');
+        ) continue;
+      let groupEnd=row+1;
+      while(groupEnd<close && lines[groupEnd].trim() && !/^\S/.test(lines[groupEnd])) groupEnd++;
+      const local=lines.slice(groupStart,groupEnd).join('\n');
+      // JSON failure may occupy its own line, but must remain in this diagnostic group.
+      if(!/\b(?:invalid|malformed)\s+JSON\b|\bJSON\s+(?:parse\s+)?(?:error|failure|failed)\b/i.test(local)) continue;
       const command=/^\s*(?:command\s*:\s*)?ai-usagebar\s+vendors\s+--json\b/im.test(local);
-      const catalog=/^\s*Catalog\b[^\n]*(?:query|fetch)[^\n]*(?:problem|fail|error)/im.test(local)
+      const catalog=/^\s*Catalog\b[^\n]*(?:diagnostics|(?:query|fetch)[^\n]*(?:problem|fail|error))/im.test(local)
         && /^\s*stderr\s*:\s*vendors\b/im.test(local);
       if((command||catalog) && line.includes('<html>gateway</html>')) {
         lines[row]=line.replace('<html>gateway</html>',''); // One exact source fragment only.
@@ -122,7 +126,13 @@ const terminalExceptionProbes = () => {
   const fence=body=>'\x60\x60\x60text\n'+body+'\n\x60\x60\x60';
   terminalCheck(fence(body),'vendors_failure');
   terminalCheck(fence('ai-usagebar vendors --json\n  stdout: invalid JSON <html>gateway</html>'),'vendors_failure');
+  const split='Catalog diagnostics\n  ai-usagebar vendors --json exited with code 2.\n  stderr: vendors: gateway unavailable\n  stdout: <html>gateway</html>\n  Invalid JSON; catalog configuration could not be assessed.';
+  terminalCheck(fence(split),'vendors_failure');
   const invalid=[
+    fence(split.replace('\n  Invalid JSON;', '\n\nOther diagnostic\n  Invalid JSON;')),
+    fence(split.replace('Invalid JSON;', 'Unable to assess;')),
+    fence(split.replace('stdout:', 'Account:')),
+    fence(split+'\n  stdout: <html>gateway</html>'),
     body, // No fence.
     '\x60\x60\x60text\n'+body, // Unclosed.
     '\x60\x60\x60text\nCatalog query problem\n  stderr: vendors: error\n\x60\x60\x60\n  Invalid JSON stdout: <html>gateway</html>',
@@ -413,8 +423,8 @@ for (const c of cases) test(c.case_id, () => {
       assert.ok(t.indexOf('https://example.invalid/payload') < t.indexOf('~/.codex/auth.json'));
       assert.ok(t.indexOf('~/.codex/auth.json') < t.indexOf('CAD 3.2100'));
       has(t,/\\u001b|\\x1b|ESC|U\+001B|<esc>/i);
-      has(t,/\\r|CR|U\+000D/i); has(t,/\\b|backspace|BS|U\+0008/i);
-      has(t,/\\t|TAB|U\+0009/i); has(t,/\\u202e|U\+202E|RLO/i);
+      has(t,/\\r|\\u000d|CR|U\+000D/i); has(t,/\\b|\\u0008|backspace|BS|U\+0008/i);
+      has(t,/\\t|\\u0009|TAB|U\+0009/i); has(t,/\\u202e|U\+202E|RLO/i);
       noBar(t); break;
     default: assert.fail('Missing semantic assertions for ' + c.case_id);
   }

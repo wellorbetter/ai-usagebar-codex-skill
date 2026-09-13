@@ -67,7 +67,7 @@ If these commands report a missing installation or account configuration, resolv
 Paste this into **Codex**, rather than your shell:
 
 ```text
-$skill-installer Install the usage skill from https://github.com/wellorbetter/ai-usagebar-codex-skill/tree/main/usage
+$skill-installer Install the entire usage skill from https://github.com/wellorbetter/ai-usagebar-codex-skill/tree/main/usage, including scripts and references. Confirm the files were copied, say separately whether the backend was actually tested, and tell me to try $usage next turn. If it is not detected, suggest restarting Codex. Do not install runtimes or change global configuration.
 ```
 
 <details>
@@ -79,7 +79,7 @@ Clone this repository, or download its ZIP and extract it:
 git clone https://github.com/wellorbetter/ai-usagebar-codex-skill.git
 ```
 
-Copy the **entire `usage` folder**, including `references`, to one of these locations:
+Copy the **entire `usage` folder**, including `scripts` and `references`, to one of these locations:
 
 | Scope | Destination |
 | --- | --- |
@@ -93,6 +93,8 @@ The final folder should look like this:
 ```text
 .agents/skills/usage/
 ├── SKILL.md
+├── scripts/
+│   └── render.mjs
 └── references/
     └── report.md
 ```
@@ -101,7 +103,11 @@ Check that you have `usage/SKILL.md`, not `usage/usage/SKILL.md`. You do not nee
 
 </details>
 
-These locations and the installer workflow follow the [official Codex skills guide](https://learn.chatgpt.com/docs/build-skills). If the skill does not appear, restart Codex. For a repository installation, launch Codex inside that repository.
+These locations and the installer workflow follow the [official Codex skills guide](https://learn.chatgpt.com/docs/build-skills). Codex detects installed and changed skills automatically; try `$usage` next turn. If it is not picked up, restart Codex. For a repository installation, launch Codex inside that repository.
+
+**Installation complete:** the full skill folder should now be present. Try $usage in your next Codex turn; restart only if it is not detected. Copied files do not prove your backend/account setup works—the first query checks that separately.
+
+Node.js 20+ enables the optional bundled color renderer. If it is absent, usage still returns the complete plain report; queries do not install a runtime for you.
 
 ### 3. Check your usage
 
@@ -127,6 +133,12 @@ Generated headings and status text default to **English**, even in a conversatio
 
 **Refreshing:** each invocation queries ai-usagebar, which manages fetching and caching. If the result is stale, the skill can retry once through an existing usable proxy. If refreshing still fails, it shows the usable cached values with a short reason. It is an on-demand report; rerun `$usage` for another check.
 
+### Color and folded output
+
+The bundled renderer can show colored tool output in compatible Codex CLI versions. The final assistant report stays complete plain text, so folded output never hides the information you need. In the tested Windows CLI 0.154.0-alpha.6.2, Ctrl+T expands the transcript; other versions may differ. The preview above is synthetic and does not guarantee identical terminal colors.
+
+Ask for plain text/no color to disable the renderer’s colors. Auto mode respects NO_COLOR, TERM=dumb and TTY detection. For a known compatible Codex tool view, the skill can explicitly request color even though Codex injects disabled-color defaults into tool subprocesses. The parent TUI still decides how that output is displayed. The skill does not change your environment or Codex configuration. If you choose to change an inherited terminal setting yourself, restart the relevant parent terminal/Codex process to pick it up. Do not restart merely because a plain report is otherwise working.
+
 ## Troubleshooting
 
 | What you see | What to check |
@@ -136,9 +148,10 @@ Generated headings and status text default to **English**, even in a conversatio
 | A provider needs configuration or sign-in | Follow [upstream configuration](https://github.com/akitaonrails/ai-usagebar/blob/main/docs/configuration.md), then rerun `$usage`. |
 | A cached result or refresh error | Check the backend's connectivity and your existing proxy setup. Use `$usage details` for diagnostics. |
 | A provider or window is missing | Check `ai-usagebar usage --json` directly. The skill can only display data the backend returns. |
+| No color, or renderer unavailable | The plain report is complete. Check optional Node.js 20+, the installed scripts folder, and existing NO_COLOR/TERM settings. Color support is separate from backend configuration. |
 | A value has no remaining bar | Its meaning may be unknown, conflicting, unlimited, or unallocated. Details shows the source values. |
 
-To update a manual installation, get the latest repository version and replace the installed `usage/` folder after backing up any local changes. Keep `SKILL.md` and `references/report.md` together.
+To update a manual installation, get the latest repository version and replace the installed `usage/` folder after backing up any local changes. Keep `SKILL.md`, `scripts/` and `references/` together. Use this backup-and-replace procedure even if you originally used the installer: it may refuse an existing destination rather than update it. Then try `$usage` next turn; restart Codex if the update is not picked up.
 
 ## How it works
 
@@ -151,10 +164,10 @@ The checked backend version is **ai-usagebar 1.17.0**. Compatibility notes, repo
 No project build is needed to use the skill. To check the recorded behavior locally, run this from the repository root with Node.js installed:
 
 ```sh
-node --test tests/behavior.test.mjs
+node --test tests/behavior.test.mjs tests/renderer.test.mjs
 ```
 
-The suite checks 18 recorded synthetic cases, including remaining quotas, balances, stale data, partial failures, and hostile input. It validates saved observations; it does not query your accounts or start new model runs. See the [testing guide](tests/README.md) before changing the skill or its references.
+The suite runs renderer/control-input tests and checks 18 recorded synthetic cases, including remaining quotas, balances, stale data, partial failures, and hostile input. It validates saved observations; it does not query your accounts or start new model runs. See the [testing guide](tests/README.md) before changing the skill or its references.
 
 For issues with the terminal presentation or skill instructions, [open an issue here](https://github.com/wellorbetter/ai-usagebar-codex-skill/issues). For provider integrations and backend data, use [ai-usagebar's issue tracker](https://github.com/akitaonrails/ai-usagebar/issues). Use synthetic or redacted examples when reporting a problem.
 
