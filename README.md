@@ -56,26 +56,29 @@ Example layout only: all names, values, states, and timestamps below are synthet
 Example AI / Work (Pro)
   Session (5h)  [#######-------------] 35% used
     Reset: 2026-09-12T06:00:00Z
-  Weekly  [########------------] 42% | Reported gauge (direction unknown)
+  Weekly        [########+-----------] 42% | Reported gauge (direction unknown)
     Detail: Resets in 2 days
   Balance: USD 12.3400
-  Reported not stale | Fetched: 2026-09-12T01:00:00Z
+  Fetched: 2026-09-12T01:00:00Z
+  + = partial 5% cell
 
 Example AI / Personal
   Error: sign in expired
   No sections reported | Freshness unknown
 ```
 
-The default view uses compact account groups and 20-cell ASCII bars for finite, nonconflicting percentages in 0–100, with original values and reported times. A bar follows an explicitly reported used/remaining direction without inversion; otherwise it is labeled `Reported gauge (direction unknown)`. This neutral-gauge behavior is the newly adopted display refinement. Malformed, conflicting, and out-of-range percentages retain their data and a diagnostic without a bar. Long labels, details, and errors continue on indented lines within their group. Equivalent value/percent or window fields share a row; distinct information stays visible. Account ids appear when needed to distinguish entries. Configuration diagnostics focus on problems; ask for configuration details to inspect available catalog flags. No wide table or complex frame is required.
+The default view uses compact account groups and 20-cell ASCII bars for finite, nonconflicting percentages in 0–100, with original values and reported times. A bar follows an explicitly reported used/remaining direction without inversion; otherwise it is labeled `Reported gauge (direction unknown)`. Bars contain floor(percent / 5) full `#` cells, one `+` for any remaining fraction of a 5% cell, and `-` padding to 20 cells: 0.1% is visible and 99.9% is not full. Exact original numbers remain beside the bar. Malformed, same-quantity conflicting, and out-of-range percentages retain their data and a diagnostic without a bar. Explicit Unlimited and zero-denominator quotas also keep their raw data without a misleading finite-quota bar. Used, remaining and elapsed percentages describe different quantities; they are not automatically conflicts or interchangeable direction evidence. Long labels, details, and errors continue on indented lines within their group. Equivalent value/percent or window fields share a row; distinct information stays visible. Routine healthy state and normal/low severity need no repeated labels; errors, stale/unknown freshness and distinct fetched times remain visible. Report-supplied Credits, Reset credits/expiry, Source, API status, count details, monetary breakdown, reset times/windows and pace/elapsed text survive in sections order. No new projection or countdown is calculated. Account ids appear when needed to distinguish entries. Configuration diagnostics focus on problems; ask for configuration details to inspect available catalog flags. No wide table or complex frame is required.
 
 ## Sources and supported boundary
 
-The source reference is pinned to upstream commit `7bb03e7efa2fd26e45017b823d15b1c9e742ee29`:
+The original source reference is pinned to upstream commit `7bb03e7efa2fd26e45017b823d15b1c9e742ee29`:
 
 - [src/report.rs](https://github.com/akitaonrails/ai-usagebar/blob/7bb03e7efa2fd26e45017b823d15b1c9e742ee29/src/report.rs): ordered sections, metrics projection, entry identity, and exit behavior.
 - [src/tui/panels.rs](https://github.com/akitaonrails/ai-usagebar/blob/7bb03e7efa2fd26e45017b823d15b1c9e742ee29/src/tui/panels.rs): source-shaped bare-percent Cursor and Kimi metrics with independent detail/reset text.
 - [src/catalog.rs](https://github.com/akitaonrails/ai-usagebar/blob/7bb03e7efa2fd26e45017b823d15b1c9e742ee29/src/catalog.rs): vendor configuration diagnostics.
 - [Issue 187](https://github.com/akitaonrails/ai-usagebar/issues/187) and the [maintainer response](https://github.com/akitaonrails/ai-usagebar/issues/187#issuecomment-5639100744): thin integration through the two JSON commands, with sections preserving balances.
+
+The presentation polish also inspected [v1.16.0 report.rs](https://github.com/akitaonrails/ai-usagebar/blob/v1.16.0/src/report.rs) and [v1.16.0 panels.rs](https://github.com/akitaonrails/ai-usagebar/blob/v1.16.0/src/tui/panels.rs) for Credits, Reset credits, count details, Source, API and elapsed text. [v1.16.0 desktop model.js](https://github.com/akitaonrails/ai-usagebar/blob/v1.16.0/windows/popover/src/model.js) calculates pacing projections in the frontend; those calculations are not additional supplied report fields. Textual provider/account identity avoids a special icon-font dependency.
 
 The maintainer guidance notes that the usage report has no schema version and fields must be treated as optional. The pinned source is a design reference, not a tested minimum release or a guarantee for every future version, platform, or provider.
 
@@ -93,6 +96,7 @@ Validation has three separate layers:
 
 - Structure: skill-creator's `quick_validate.py` checks packaging and frontmatter, not model behavior.
 - Synthetic interpretation: independent executions receive only the skill, case request, and injected command-result envelopes. Cases cover account/window/currency separation, ordered sections and fallback, custom providers, optional/malformed data, directed/neutral/conflicting percentages, configuration diagnostics, partial errors, and hostile text. Their recorded `synthetic injection` results are interpretation evidence, not actual CLI calls. Review the responses alongside the validator.
-- CLI integration: a local discovery/invocation smoke reached the usage workflow, but both fixed commands were blocked by execution policy before launch. Neither stub command ran; separate stdout/stderr/exit capture and real-account behavior were not established.
+- CLI discovery: an earlier local smoke reached the usage workflow, but both commands were blocked by execution policy before launch.
+- Live backend and rendering: a later host-run check obtained actual backend results using a temporary process-scoped proxy and successfully rendered the returned report. This establishes that tested backend/rendering path, not a complete autonomous discovery-plus-command run or cross-platform portability. Private reports are not public test fixtures.
 
-The installed `usage` folder does not depend on Node or test artifacts. Any passing claim must identify the actual validator command, exit status, observations, and tested hashes. Source inspection and synthetic records do not prove live account integration, cross-platform compatibility, or upstream approval.
+The installed `usage` folder does not depend on Node or test artifacts. Any passing claim must identify the actual validator command, exit status, observations, and tested hashes. Source inspection and synthetic records alone do not prove live integration; the host check above has its own narrower scope. None establishes cross-platform compatibility or upstream approval.

@@ -15,7 +15,8 @@ assert.equal(observed.cases_sha256, hash(casesBytes), 'Cases changed: obtain new
 const requiredIds = [
   'accounts_windows_balances', 'partial_nonzero', 'fallback_and_edges', 'empty_report',
   'missing_command', 'missing_config', 'invalid_usage', 'vendors_failure', 'all_failed',
-  'untrusted_fields', 'source_neutral_catalog', 'conflicts_layout_catalog'
+  'untrusted_fields', 'source_neutral_catalog', 'conflicts_layout_catalog',
+  'partial_cell_boundaries', 'source_rich_quota_semantics'
 ];
 assert.ok(Array.isArray(cases));
 assert.equal(new Set(cases.map(c => c.case_id)).size, cases.length, 'Duplicate fixture case_id');
@@ -35,27 +36,31 @@ const group = (text, name, next) => {
   assert.ok(end > start, 'Missing or reordered group ' + next);
   return text.slice(start, end);
 };
-const bars = text => [...text.matchAll(/\[([#-]+)\]/g)].map(m => m[1]);
-const barCheck = (text, fill, required = true) => {
+const bars = text => [...text.matchAll(/\[([#+-]+)\]/g)].map(m => m[1]);
+const barCheck = (text, percent, required = true) => {
+  const fill = Math.floor(percent / 5);
+  const partial = percent > fill * 5 ? 1 : 0;
   const found = bars(text);
   assert.ok(required ? found.length === 1 : found.length <= 1, 'Missing or duplicate metric bar');
-  for (const b of found) assert.equal(b, '#'.repeat(fill) + '-'.repeat(20-fill), 'Incorrect 20-cell bar');
+  for (const b of found) assert.equal(b, '#'.repeat(fill) + '+'.repeat(partial) + '-'.repeat(20-fill-partial), 'Incorrect 20-cell bar');
 };
-const noBar = text => lacks(text, /[#█▓■=]{3,}|\[[#.\- ]{5,}\]/);
+const noBar = text => lacks(text, /[#█▓■=]{3,}|\[[#+.\- ]{5,}\]/);
 const unknown = /unknown|unavailable|not (?:provided|reported)|missing|未知|未提供|未报告|缺失|无法确定|不明/i;
 const failure = /error|fail|invalid|unavailable|异常|错误|失败|无效|不可用|无法/i;
 const config = /config|credential|配置|凭据/i;
 
+const withoutBarLegend = text => text.split('\n').filter(line => !/^[\s]*(?:\+\s*(?:=|:|：)|(?:Legend|图例)\s*[:：]).*(?:partial|fraction|部分|不足|余量)/i.test(line)).join('\n');
 const metricCheck = (text, percent, direction, fill) => {
+  text = withoutBarLegend(text);
   const values = [...text.matchAll(/(?:^|[^\d.])(\d+(?:\.\d+)?)\s*%/g)].map(m => Number(m[1]));
   assert.ok(values.includes(percent), 'Missing metric percentage ' + percent);
   assert.ok(values.every(value => value === percent), 'Percentage assigned to wrong metric');
   has(text, direction === 'used' ? /\bused\b|已用|已使用|已消耗/i : /\bremaining\b|\bleft\b|剩余|余量/i);
   lacks(text, direction === 'used' ? /\bremaining\b|\bleft\b|剩余|余量/i : /\bused\b|已用|已使用|已消耗/i);
-  barCheck(text, fill);
+  barCheck(text, percent);
 };
 const neutralCheck = (text, percent, fill, required = true) => {
-  const diagnostic = text.replaceAll('Unknown direction', '');
+  const diagnostic = withoutBarLegend(text).replaceAll('Unknown direction', '');
   has(diagnostic, unknown);
   const values = [...diagnostic.matchAll(/(?:^|[^\d.])(\d+(?:\.\d+)?)\s*%/g)].map(m => Number(m[1]));
   assert.ok(values.includes(percent), 'Missing metric percentage ' + percent);
@@ -63,7 +68,7 @@ const neutralCheck = (text, percent, fill, required = true) => {
   has(diagnostic, /reported|gauge|neutral|报告|上报|中性|仪表|进度条/i);
   const p = String(percent).replace('.', '\\.');
   lacks(diagnostic, new RegExp(p + '\\s*%\\s*(?:used|remaining|left|已用|剩余)|(?:used|remaining|left|已用|剩余)\\s*[:：]?\\s*' + p + '\\s*%', 'i'));
-  barCheck(diagnostic, fill, required);
+  barCheck(diagnostic, percent, required);
 };
 
 const missingValueCheck = text => {
@@ -214,6 +219,51 @@ for (const c of cases) test(c.case_id, () => {
       lacks(neighbor, /SEK 41\.6250|final (?:detail|error|regional allocation) marker|120%|55%/);
       lacks(faulty, /NOK 23\.7500/);
       catalogCheck(t, true);
+      break;
+    }
+    case 'partial_cell_boundaries': {
+      const ps = [0, 0.1, 2, 4.9, 5, 5.1, 99.9, 100];
+      for (let i=0; i<ps.length; i++) {
+        const row=group(t, 'Window '+String.fromCharCode(65+i), i+1<ps.length ? 'Window '+String.fromCharCode(66+i) : undefined);
+        if (i===3) neutralCheck(row, ps[i]); else metricCheck(row, ps[i], 'used');
+      }
+      has(t, /partial|fraction|部分|不足|余量/i);
+      literal(t, '+');
+      break;
+    }
+    case 'source_rich_quota_semantics': {
+      const work=group(t,'Rich / Work','Rich / Personal');
+      const personal=group(t,'Rich / Personal','Rich / Offline');
+      const offline=group(t,'Rich / Offline','Rich / Untimed');
+      const untimed=group(t,'Rich / Untimed');
+      const ordered=['Session','Credits','Reset credits','Premium requests','Unlimited requests','Zero capacity','Source','API','Breakdown','Independent timing','Critical quota'];
+      for(let i=1;i<ordered.length;i++) assert.ok(work.indexOf(ordered[i])>work.indexOf(ordered[i-1]),'Lost/reordered section '+ordered[i]);
+      for(const v of ['Pro','USD 17.4200','3 credits available; expires 2026-10-02','Local cache snapshot','Available','CNY 48.1200 total','CNY 40.0000 topped up','CNY 8.1200 granted','2026-09-13T01:00:00Z']) literal(work,v);
+      const session=group(work,'Session','Credits');
+      for(const v of ['2% used','Resets in 3h 00m','40% elapsed','steady pace','2026-09-13T04:00:00Z']) literal(session,v);
+      has(session,/18000|18,000|5\s*(?:h|hours?|小时)/i); barCheck(session,2);
+      const counted=group(work,'Premium requests','Unlimited requests');
+      for(const v of ['25% used','75% remaining','25 of 100 requests used']) literal(counted,v);
+      barCheck(counted,25);
+      const unlimited=group(work,'Unlimited requests','Zero capacity');
+      literal(unlimited,'Unlimited'); has(unlimited,/\b63(?:%|\b)/); noBar(unlimited);
+      const zero=group(work,'Zero capacity','Source');
+      literal(zero,'0 of 0 used'); literal(zero,'100%'); noBar(zero);
+      has(zero,/ambiguous|no (?:stated |positive )?capacity|zero.denominator|zero.capacity|unclear|未明确|无.*容量|分母.*0|容量.*0|歧义|不明/i);
+      const timing=group(work,'Independent timing','Critical quota');
+      literal(timing,'15%'); literal(timing,'60% elapsed'); literal(timing,'mystery');
+      has(timing,unknown); barCheck(timing,15);
+      lacks(timing,/15%\s*(?:used|remaining|left)|(?:used|remaining|left)\s*:?\s*15%/i);
+      const critical=group(work,'Critical quota'); literal(critical,'90%'); has(critical,/critical|严重|危急/i); barCheck(critical,90);
+      // Legitimate distinct quantities must not become a same-quantity conflict.
+      for(const row of [session,counted,timing]) lacks(row,/conflicting percentages|contradictory percentages|percentage mismatch|百分比冲突|百分比矛盾/i);
+      for(const [part,values] of [[personal,['EUR 6.7300','2026-09-13T02:00:00Z']],[offline,['JPY 21.5000','2026-09-12T02:00:00Z','refresh timeout']]]) for(const v of values) literal(part,v);
+      has(offline,/stale|陈旧|过期/i); has(untimed,unknown);
+      lacks(personal,/USD 17\.4200|JPY 21\.5000|2026-09-13T01:00:00Z/);
+      lacks(work,/EUR 6\.7300|JPY 21\.5000|2026-09-13T02:00:00Z/);
+      // At most one shared routine-state explanation, never repeated per metric/account.
+      assert.ok((work.match(/\b(?:normal|healthy|reported not stale|status:\s*ready)\b/gi)??[]).length<=1,'Repeated healthy-state boilerplate');
+      lacks(t,/projected (?:usage|consumption)|will (?:hit|reach|exhaust)|预计.*(?:耗尽|用完)|预测.*(?:用量|消耗)/i);
       break;
     }
     case 'empty_report':

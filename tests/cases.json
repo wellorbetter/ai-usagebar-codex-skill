@@ -167,6 +167,34 @@
         "stderr": "",
         "exit_code": 0
       }
+    },
+    {
+      "case_id": "partial_cell_boundaries",
+      "request": "$usage — show my provider usage and any problems.",
+      "usage": {
+        "stdout": "{\"entries\":[{\"id\":\"Boundary / Synthetic\",\"name\":\"Boundary / Synthetic\",\"display_name\":\"Boundary / Synthetic\",\"sections\":[{\"type\":\"metric\",\"label\":\"Window A\",\"percent\":0,\"value\":\"0% used\",\"severity\":\"normal\"},{\"type\":\"metric\",\"label\":\"Window B\",\"percent\":0.1,\"value\":\"0.1% used\",\"severity\":\"normal\"},{\"type\":\"metric\",\"label\":\"Window C\",\"percent\":2,\"value\":\"2% used\",\"severity\":\"normal\"},{\"type\":\"metric\",\"label\":\"Window D\",\"percent\":4.9,\"value\":\"4.9%\",\"severity\":\"normal\"},{\"type\":\"metric\",\"label\":\"Window E\",\"percent\":5,\"value\":\"5% used\",\"severity\":\"normal\"},{\"type\":\"metric\",\"label\":\"Window F\",\"percent\":5.1,\"value\":\"5.1% used\",\"severity\":\"normal\"},{\"type\":\"metric\",\"label\":\"Window G\",\"percent\":99.9,\"value\":\"99.9% used\",\"severity\":\"normal\"},{\"type\":\"metric\",\"label\":\"Window H\",\"percent\":100,\"value\":\"100% used\",\"severity\":\"normal\"}],\"status\":\"ready\",\"stale\":false,\"fetched_at\":\"2026-09-13T01:00:00Z\"}]}",
+        "stderr": "",
+        "exit_code": 0
+      },
+      "vendors": {
+        "stdout": "{\"vendors\":[]}",
+        "stderr": "",
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "source_rich_quota_semantics",
+      "request": "$usage — show my provider usage and any problems.",
+      "usage": {
+        "stdout": "{\"entries\":[{\"id\":\"Rich / Work\",\"name\":\"Rich / Work\",\"display_name\":\"Rich / Work\",\"sections\":[{\"type\":\"metric\",\"label\":\"Session\",\"percent\":2,\"value\":\"2% used\",\"severity\":\"normal\",\"detail\":\"Resets in 3h 00m · 40% elapsed · steady pace\",\"reset_at\":\"2026-09-13T04:00:00Z\",\"window_secs\":18000},{\"type\":\"text\",\"label\":\"Credits\",\"value\":\"USD 17.4200\"},{\"type\":\"text\",\"label\":\"Reset credits\",\"value\":\"3 credits available; expires 2026-10-02\"},{\"type\":\"spacer\"},{\"type\":\"metric\",\"label\":\"Premium requests\",\"percent\":25,\"value\":\"25% used\",\"severity\":\"normal\",\"detail\":\"75% remaining · 25 of 100 requests used\"},{\"type\":\"metric\",\"label\":\"Unlimited requests\",\"percent\":63,\"value\":\"Unlimited\",\"severity\":\"normal\",\"detail\":\"Unlimited\"},{\"type\":\"metric\",\"label\":\"Zero capacity\",\"percent\":100,\"value\":\"100% used\",\"severity\":\"normal\",\"detail\":\"0 of 0 used\"},{\"type\":\"text\",\"label\":\"Source\",\"value\":\"Local cache snapshot\"},{\"type\":\"text\",\"label\":\"API\",\"value\":\"Available\"},{\"type\":\"block\",\"label\":\"Breakdown\",\"body\":[\"CNY 48.1200 total\",\"CNY 40.0000 topped up\",\"CNY 8.1200 granted\"]},{\"type\":\"metric\",\"label\":\"Independent timing\",\"percent\":15,\"value\":\"15%\",\"severity\":\"mystery\",\"detail\":\"60% elapsed\"},{\"type\":\"metric\",\"label\":\"Critical quota\",\"percent\":90,\"value\":\"90% used\",\"severity\":\"critical\"}],\"status\":\"ready\",\"stale\":false,\"fetched_at\":\"2026-09-13T01:00:00Z\",\"plan\":\"Pro\"},{\"id\":\"Rich / Personal\",\"name\":\"Rich / Personal\",\"display_name\":\"Rich / Personal\",\"sections\":[{\"type\":\"text\",\"label\":\"Balance\",\"value\":\"EUR 6.7300\"}],\"status\":\"ready\",\"stale\":false,\"fetched_at\":\"2026-09-13T02:00:00Z\"},{\"id\":\"Rich / Offline\",\"name\":\"Rich / Offline\",\"display_name\":\"Rich / Offline\",\"sections\":[{\"type\":\"text\",\"label\":\"Balance\",\"value\":\"JPY 21.5000\"}],\"status\":\"ready\",\"stale\":true,\"fetched_at\":\"2026-09-12T02:00:00Z\",\"error\":\"refresh timeout\"},{\"id\":\"Rich / Untimed\",\"name\":\"Rich / Untimed\",\"display_name\":\"Rich / Untimed\",\"sections\":[],\"status\":\"ready\",\"stale\":null,\"fetched_at\":null}]}",
+        "stderr": "",
+        "exit_code": 0
+      },
+      "vendors": {
+        "stdout": "{\"vendors\":[]}",
+        "stderr": "",
+        "exit_code": 0
+      }
     }
   ]
 }
