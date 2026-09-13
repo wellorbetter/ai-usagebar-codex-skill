@@ -4,6 +4,16 @@
 
 <p>Know what's left. Keep building.</p>
 
+<p>
+  <a href="https://learn.chatgpt.com/docs/build-skills"><img alt="Codex CLI skill" src="https://img.shields.io/badge/Codex_CLI-skill-80dfb7?style=flat-square&amp;labelColor=242938"></a>
+  <a href="https://github.com/akitaonrails/ai-usagebar"><img alt="Powered by ai-usagebar" src="https://img.shields.io/badge/powered_by-ai--usagebar-baa7f5?style=flat-square&amp;labelColor=242938"></a>
+  <a href="#color-and-folded-output"><img alt="Optional renderer: Node.js 20 or newer" src="https://img.shields.io/badge/optional_renderer-Node.js_20%2B-7fc9ed?style=flat-square&amp;labelColor=242938&amp;logo=nodedotjs&amp;logoColor=white"></a>
+</p>
+<p>
+  <a href="README.zh-CN.md"><img alt="Documentation in English and Simplified Chinese" src="https://img.shields.io/badge/docs-English_%2F_%E7%AE%80%E4%BD%93%E4%B8%AD%E6%96%87-e5c181?style=flat-square&amp;labelColor=242938"></a>
+  <a href="https://github.com/wellorbetter/ai-usagebar-codex-skill/stargazers"><img alt="GitHub stars" src="https://img.shields.io/github/stars/wellorbetter/ai-usagebar-codex-skill?style=flat-square&amp;labelColor=242938&amp;color=80dfb7&amp;logo=github&amp;logoColor=white"></a>
+</p>
+
 <p><strong>English</strong> · <a href="README.zh-CN.md">简体中文</a></p>
 <p><a href="#install">Quick start</a> · <a href="#usage">Usage</a> · <a href="#troubleshooting">Troubleshooting</a></p>
 
