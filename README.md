@@ -1,61 +1,153 @@
 # usage for Codex CLI
 
-An independently maintained, instruction-only skill for the external [ai-usagebar CLI](https://github.com/akitaonrails/ai-usagebar). $usage shows remaining capacity, reset time and balances in compact terminal text. $usage details or $usage 查看详情 opens the richer original report. It adds no native /usage command, GUI, plugin or renderer runtime.
+**Check AI quotas, reset times, and balances without leaving your coding session.**
+
+Type `$usage` in Codex CLI to get a compact report from [ai-usagebar](https://github.com/akitaonrails/ai-usagebar). See what remains across your configured providers and accounts, then ask for details when you need the full report.
+
+[Install](#install) · [Usage](#usage) · [Troubleshooting](#troubleshooting) · [How it works](docs/compatibility.md)
+
+```text
+Codex / Work
+  5h            [###################+] 98% remaining · resets in 3h
+  Weekly        [#####---------------] 25% remaining · resets in 3h
+  Balance       USD 17.4200
+  Reset credits 2 available · expires 2026-10-02
+  Unavailable   Model-Z at capacity
+
+Copilot / Work
+  Premium requests  75 remaining
+  Chat              Unlimited
+  Completions       No allocated quota
+
+DeepSeek / Work
+  Balance CNY 48.1200
+```
+
+*Actual skill output from a synthetic test. Names and amounts are test data; your providers, values, and layout may differ.*
+
+## Features
+
+- **Remaining at a glance.** Compact quota bars, remaining request counts, and reset times, grouped by provider and account.
+- **Balances stay visible.** Paid wallets and currencies remain separate; routine metadata stays out of the default view.
+- **Useful status, less noise.** Unlimited quotas, unallocated quotas, unavailable models, and reset credits get readable status text.
+- **Details when needed.** Original reported values, balance breakdowns, timestamps, and diagnostics are available with `$usage details`.
+- **Honest freshness.** Cached results are marked when refresh fails, with warnings attached to the affected account.
+- **A small installation.** The skill consists of instructions and a reference file. Only the `usage/` folder is needed at runtime.
+
+Provider availability comes from your ai-usagebar installation and configuration. The example shows Codex, GitHub Copilot, and DeepSeek; see [upstream configuration](https://github.com/akitaonrails/ai-usagebar/blob/main/docs/configuration.md) for other providers and account setup.
 
 ## Install
 
-Install/configure ai-usagebar separately from its [upstream instructions](https://github.com/akitaonrails/ai-usagebar#readme). Copy this repository's entire usage folder, including references, to ~/.agents/skills/usage for user scope, or <repository>/.agents/skills/usage for repository scope. Inspect an existing destination before replacement; avoid usage/usage nesting. Only the usage folder is needed at runtime.
+### 1. Set up ai-usagebar
 
-These locations follow the [official skills documentation](https://learn.chatgpt.com/docs/build-skills.md). Launch Codex inside the repository for repository discovery; restart if the skill does not appear. Natural-language selection is model-dependent; $usage explicitly selects it. The installed skill has no Node dependency.
+Install [Codex CLI](https://developers.openai.com/codex/cli) and follow [ai-usagebar's installation guide](https://github.com/akitaonrails/ai-usagebar#install) to install the backend and configure the providers you want to query.
 
-## Use
+Check that the backend is available in the terminal where you use Codex:
 
-~~~text
+```sh
+ai-usagebar --version
+ai-usagebar usage --json
+ai-usagebar vendors --json
+```
+
+If these commands report a missing installation or account configuration, resolve that in ai-usagebar first. This skill uses its existing provider setup.
+
+### 2. Add the skill to Codex
+
+Paste this into **Codex**, rather than your shell:
+
+```text
+$skill-installer Install the usage skill from https://github.com/wellorbetter/ai-usagebar-codex-skill/tree/main/usage
+```
+
+<details>
+<summary>Manual installation</summary>
+
+Clone this repository, or download its ZIP and extract it:
+
+```sh
+git clone https://github.com/wellorbetter/ai-usagebar-codex-skill.git
+```
+
+Copy the **entire `usage` folder**, including `references`, to one of these locations:
+
+| Scope | Destination |
+| --- | --- |
+| Your user, across projects | `~/.agents/skills/usage/` |
+| One repository | `<repository>/.agents/skills/usage/` |
+
+On Windows, `~` means your user profile directory, such as `C:\Users\you`. Create the parent folders if needed. If a `usage` skill is already installed, back it up before replacing it.
+
+The final folder should look like this:
+
+```text
+.agents/skills/usage/
+├── SKILL.md
+└── references/
+    └── report.md
+```
+
+Check that you have `usage/SKILL.md`, not `usage/usage/SKILL.md`. You do not need to copy the tests or build the repository.
+
+</details>
+
+These locations and the installer workflow follow the [official Codex skills guide](https://learn.chatgpt.com/docs/build-skills). If the skill does not appear, restart Codex. For a repository installation, launch Codex inside that repository.
+
+### 3. Check your usage
+
+In Codex CLI, type:
+
+```text
 $usage
-$usage details
-~~~
+```
 
-Generated UI text defaults to English, including when invoked in a Chinese conversation; provider/account names and original source data remain intact. Synthetic example, with supplied used percentages 2 and 75:
+Codex runs the backend queries and returns a readable report. `$usage` is a skill invocation inside Codex; it is not a shell executable or a built-in `/usage` command.
 
-~~~text
-Example / Work
-  5h      [###################+] 98% remaining · resets in 3h
-  Weekly  [#####---------------] 25% remaining · resets in 2d
-  Balance USD 12.3400
-~~~
+## Usage
 
-Every quota window stays separate. Bars represent displayed remaining, with partial cells for small positive values and exact percentages alongside. Explicit remaining is unchanged; explicit used and the verified standard openai quota-window shape can be converted. Unknown provider semantics remain unconverted, without a misleading remaining bar. Unlimited and zero-total quotas do not look like consumed finite quotas.
+| Ask Codex | What you get |
+| --- | --- |
+| `$usage` | Remaining capacity, reset times, balances, and actionable problems. |
+| `$usage details` | Original reported values, quota windows, balance breakdowns, freshness, and diagnostics. |
+| `$usage show provider configuration details` | Configuration information from the provider catalog. |
 
-The default keeps balances, unavailable models and actionable errors while leaving timestamps, severity names, pacing and routine metadata to details. Zero-total quotas show only their plain no-quota status. Empty add-on Credits with no usable messages may be omitted; actual wallet amounts stay visible. Reset credits uses a short availability status, with an unzoned expiry date left as a date or available in details. Details preserves original values/directions, ordered sections, reset/window, credits/expiry, Source/API, balance breakdown and fetched/stale information. Configuration details are a separate request. Neither view invents pace projections or executes report text.
+Generated headings and status text default to **English**, even in a conversation in another language. Provider names, account names, and source data keep their meaning.
 
-## Query and stale data
+**Reading the bars:** a fuller bar means more remaining capacity. Known used percentages are converted to remaining; values with unknown or conflicting meaning are kept without a misleading remaining bar. Details preserves the original reported direction, so its percentages may differ from the default view.
 
-The skill independently runs ai-usagebar usage --json and ai-usagebar vendors --json, retaining stdout/stderr/exit status. Useful JSON survives a nonzero exit. sections wins over metrics even when empty; missing values do not become zero and catalog configuration does not prove remote authentication.
+**Refreshing:** each invocation queries ai-usagebar, which manages fetching and caching. If the result is stale, the skill can retry once through an existing usable proxy. If refreshing still fails, it shows the usable cached values with a short reason. It is an on-demand report; rerun `$usage` for another check.
 
-If a result is stale, the skill may retry usage once with a timeout through an already configured or verified proxy. A fresh session can narrowly read an enabled system proxy endpoint; it does not depend on remembered local addresses. Proxy settings apply only to the query child. It does not guess addresses, read credentials, run login, change global networking or install dependencies. No usable proxy or a failed retry leaves cached values clearly marked, without presenting an old countdown as current. The external CLI still owns provider authentication/cache operations.
+## Troubleshooting
 
-## Sources and supported boundary
+| What you see | What to check |
+| --- | --- |
+| Codex cannot find `usage` | Verify the installed folder structure above, then restart Codex. |
+| `ai-usagebar` cannot be launched | Check that it is installed and available on the PATH inherited by Codex. |
+| A provider needs configuration or sign-in | Follow [upstream configuration](https://github.com/akitaonrails/ai-usagebar/blob/main/docs/configuration.md), then rerun `$usage`. |
+| A cached result or refresh error | Check the backend's connectivity and your existing proxy setup. Use `$usage details` for diagnostics. |
+| A provider or window is missing | Check `ai-usagebar usage --json` directly. The skill can only display data the backend returns. |
+| A value has no remaining bar | Its meaning may be unknown, conflicting, unlimited, or unallocated. Details shows the source values. |
 
-The original source reference is pinned to upstream commit `7bb03e7efa2fd26e45017b823d15b1c9e742ee29`:
+To update a manual installation, get the latest repository version and replace the installed `usage/` folder after backing up any local changes. Keep `SKILL.md` and `references/report.md` together.
 
-- [src/report.rs](https://github.com/akitaonrails/ai-usagebar/blob/7bb03e7efa2fd26e45017b823d15b1c9e742ee29/src/report.rs): ordered sections, metrics projection, entry identity, and exit behavior.
-- [src/tui/panels.rs](https://github.com/akitaonrails/ai-usagebar/blob/7bb03e7efa2fd26e45017b823d15b1c9e742ee29/src/tui/panels.rs): source-shaped bare-percent Cursor and Kimi metrics with independent detail/reset text.
-- [src/catalog.rs](https://github.com/akitaonrails/ai-usagebar/blob/7bb03e7efa2fd26e45017b823d15b1c9e742ee29/src/catalog.rs): vendor configuration diagnostics.
-- [Issue 187](https://github.com/akitaonrails/ai-usagebar/issues/187) and the [maintainer response](https://github.com/akitaonrails/ai-usagebar/issues/187#issuecomment-5639100744): thin integration through the two JSON commands, with sections preserving balances.
+## How it works
 
-The current source check inspected [v1.17.0 report.rs](https://github.com/akitaonrails/ai-usagebar/blob/v1.17.0/src/report.rs) and [v1.17.0 panels.rs](https://github.com/akitaonrails/ai-usagebar/blob/v1.17.0/src/tui/panels.rs) for Credits, Reset credits, count details, Source, API and elapsed text. [v1.17.0 desktop model.js](https://github.com/akitaonrails/ai-usagebar/blob/v1.17.0/windows/popover/src/model.js) calculates pacing projections in the frontend; those calculations are not additional supplied report fields. Textual provider/account identity avoids a special icon-font dependency.
+This is an independently maintained Codex skill. ai-usagebar owns provider integrations, authentication, and caching; the skill queries its usage and vendor JSON reports and explains them in the terminal.
 
-Earlier reports were unversioned. v1.17.0 now emits schema_version=1 for aggregate and single-entry usage JSON and adds optional brand. The skill supports older missing-version reports and unknown additive fields. brand is a visual hint, not provider identity or authority to reinterpret quota percentages. The pinned source is a compatibility reference, not a guarantee for every future version, platform, or provider.
+The checked backend version is **ai-usagebar 1.17.0**. Compatibility notes, report semantics, and the limits of live testing are in [How it works and compatibility](docs/compatibility.md).
 
-## Validation
+## Development
 
-Run node --test tests/behavior.test.mjs from the repository root. See [tests/README.md](tests/README.md) for independent observation generation. Checks bind the complete production usage file set plus cases to exact SHA-256 hashes; changing a reference invalidates observations too. Never rebind old answers to a new skill.
+No project build is needed to use the skill. To check the recorded behavior locally, run this from the repository root with Node.js installed:
 
-Validation layers have different scopes:
+```sh
+node --test tests/behavior.test.mjs
+```
 
-- Packaging checks establish frontmatter/file structure, not model behavior.
-- Independent synthetic injections test interpretation of raw reports and retry results with tools disabled. They cannot prove actual proxy lookup, command count or child environment isolation. Review actual default output as well as assertions.
-- An earlier autonomous discovery/invocation smoke reached the skill but execution policy blocked its commands.
-- A later tool-enabled `codex exec --yolo --ephemeral` smoke invoked the installed skill with ai-usagebar 1.17.0. After unavailable Python wrapper attempts, it used PowerShell to execute usage/vendors independently; both queries returned exit 0 and empty stderr, with schema_version=1 and no reported stale/error for the three tested entries. The Codex turn exited 0. The existing proxy was supplied to the child environment; this proves the tested CLI invocation/query path, not autonomous system-proxy discovery, every provider or all platforms. Private reports remain outside git.
+The suite checks 18 recorded synthetic cases, including remaining quotas, balances, stale data, partial failures, and hostile input. It validates saved observations; it does not query your accounts or start new model runs. See the [testing guide](tests/README.md) before changing the skill or its references.
 
-Any passing revision claim requires fresh observations and the actual validator result. Only synthetic data and observations belong in git; install the whole verified usage folder including references.
+For issues with the terminal presentation or skill instructions, [open an issue here](https://github.com/wellorbetter/ai-usagebar-codex-skill/issues). For provider integrations and backend data, use [ai-usagebar's issue tracker](https://github.com/akitaonrails/ai-usagebar/issues). Use synthetic or redacted examples when reporting a problem.
+
+## Acknowledgments
+
+Built on [akitaonrails/ai-usagebar](https://github.com/akitaonrails/ai-usagebar), following the maintainer's [guidance for external skills](https://github.com/akitaonrails/ai-usagebar/issues/187#issuecomment-5639100744). This repository maintains the Codex integration separately from the upstream application.
