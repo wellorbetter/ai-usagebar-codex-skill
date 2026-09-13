@@ -83,13 +83,57 @@ const missingValueCheck = text => {
   lacks(diagnostic, /(?:^|[^\d])0(?:%|\s*(?:requests|请求))|\b(?:value|percent)\s*[:=]\s*0\b|(?:值|百分比)\s*[:：=]\s*0\b/i);
 };
 const terminalCheck = (text, caseId) => {
-  // Mask only the exact original vendors stdout in an attributed JSON diagnostic.
-  // Never alter the recorded observation or exempt the rest of its line.
-  const checked = caseId === 'vendors_failure' && /ai-usagebar vendors --json/.test(text)
-    ? text.split('\n').map(line => /stdout/i.test(line) && /JSON/i.test(line) && failure.test(line)
-      ? line.replace('<html>gateway</html>', '') : line).join('\n')
-    : text;
-  lacks(checked, /<html|<svg|<img|!\[[^\]]*\]\(/i);
+  const lines=text.split('\n');
+  let removed=false;
+  if(caseId==='vendors_failure') for(let i=0;i<lines.length;i++) {
+    const open=/^ {0,3}(\x60{3,}|~{3,})(?:text|plain-text|plaintext)\s*$/i.exec(lines[i]);
+    if(!open) continue;
+    const marker=open[1][0], width=open[1].length;
+    let close=i+1;
+    while(close<lines.length) {
+      const closing=/^ {0,3}(\x60+|~+)\s*$/.exec(lines[close]);
+      if(closing && closing[1][0]===marker && closing[1].length>=width) break;
+      close++;
+    }
+    if(close===lines.length) break; // Unclosed fences never qualify.
+    let groupStart=i+1;
+    for(let row=i+1;row<close;row++) {
+      // Blank lines or a new unindented heading begin a local diagnostic group.
+      if(!lines[row].trim()) {groupStart=row+1;continue;}
+      if(/^\S/.test(lines[row])) groupStart=row;
+      const line=lines[row];
+      if(removed || !/^\s*(?:stdout\b|(?:invalid|failed|error|malformed)\s+(?:JSON\s+)?stdout\b|JSON\s+stdout\b)/i.test(line)
+        || !/JSON/i.test(line) || !failure.test(line)) continue;
+      const local=lines.slice(groupStart,row+1).join('\n');
+      const command=/^\s*(?:command\s*:\s*)?ai-usagebar\s+vendors\s+--json\b/im.test(local);
+      const catalog=/^\s*Catalog\b[^\n]*(?:query|fetch)[^\n]*(?:problem|fail|error)/im.test(local)
+        && /^\s*stderr\s*:\s*vendors\b/im.test(local);
+      if((command||catalog) && line.includes('<html>gateway</html>')) {
+        lines[row]=line.replace('<html>gateway</html>',''); // One exact source fragment only.
+        removed=true;
+      }
+    }
+    i=close;
+  }
+  lacks(lines.join('\n'), /<html|<svg|<img|!\[[^\]]*\]\(/i);
+};
+const terminalExceptionProbes = () => {
+  const body='Catalog query problem\n  stderr: vendors: gateway unavailable\n  Invalid JSON stdout: <html>gateway</html>';
+  const fence=body=>'\x60\x60\x60text\n'+body+'\n\x60\x60\x60';
+  terminalCheck(fence(body),'vendors_failure');
+  terminalCheck(fence('ai-usagebar vendors --json\n  stdout: invalid JSON <html>gateway</html>'),'vendors_failure');
+  const invalid=[
+    body, // No fence.
+    '\x60\x60\x60text\n'+body, // Unclosed.
+    '\x60\x60\x60text\nCatalog query problem\n  stderr: vendors: error\n\x60\x60\x60\n  Invalid JSON stdout: <html>gateway</html>',
+    fence(body.replace('stderr: vendors:','stderr: service:')), // No local vendor identity.
+    fence('ai-usagebar vendors --json\n\nAccount\n  Invalid JSON stdout: <html>gateway</html>'),
+    fence(body.replace('Invalid JSON stdout:','Balance:')), // Account/value text is not stdout diagnostic.
+    fence(body.replace('gateway</html>','other</html>')),
+    fence(body+'\n  <html>gateway</html>'), // Cannot exempt a second fragment.
+    fence(body+' <svg></svg>'), fence(body+' <img src=x>'), fence(body+' ![x](url)')
+  ];
+  for(const value of invalid) assert.throws(()=>terminalCheck(value,'vendors_failure'));
 };
 const catalogNames = ['Disabled Demo', 'Setup Demo', 'Uncertain Demo', 'Healthy Demo'];
 const catalogRow = (text, name) => {
@@ -137,7 +181,9 @@ const compactCheck = text => {
   lacks(text,/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}|\b(?:severity|fetched_at|reported gauge|direction unknown|elapsed|steady pace|Breakdown)\b|图例|partial 5%|健康状态|方向未知/i);
   lacks(text,/^\s*(?:Source|API|Fetched|Status)\s*[:：]/im);
   assert.ok((text.match(/\$usage\s*(?:details|查看详情)/gi)??[]).length<=1,'Repeated detail hint');
-  has(text,/剩余|额度|配额|余额|缓存|旧|不可用/);
+  // These compact fixtures have ASCII-only source content; Chinese requests must not switch UI language.
+  lacks(text,/[\u3400-\u9fff\uf900-\ufaff]/);
+  has(text,/remaining|left|quota|balance|cached|stale|unavailable/i);
 };
 const section=(text,startPattern,endPattern)=>{
   const start=startPattern.exec(text); assert.ok(start,'Missing compact row '+startPattern);
@@ -297,17 +343,17 @@ for (const c of cases) test(c.case_id, () => {
     case 'compact_source': {
       compactCheck(t);
       const codex=group(t,'Codex / Work','Copilot / Work'), cp=group(t,'Copilot / Work','DeepSeek / Work'), ds=group(t,'DeepSeek / Work');
-      remainingCheck(section(codex,/(?:Codex\s*)?5h|5\s*小时|5\s*小时额度/i,/weekly|周额度|每周|周配额/i),98);
-      remainingCheck(section(codex,/weekly|周额度|每周|周配额/i,/Credits|余额|信用|点数/i),25);
+      remainingCheck(section(codex,/(?:Codex\s*)?5\s*[- ]?(?:h|hours?)\b|5\s*小时|5\s*小时额度/i,/weekly|week|周额度|每周|周配额/i),98);
+      remainingCheck(section(codex,/weekly|week|周额度|每周|周配额/i,/Credits|balance|余额|信用|点数/i),25);
       literal(codex,'USD 17.4200'); literal(codex,'Model-Z');
       const resetCredit=section(codex,/Reset credits|重置(?:额度|次数|积分|点数)/i,/Unavailable|不可用|Model-Z/i);
-      has(resetCredit,/2/); has(resetCredit,/可用|剩余|available/i);
+      has(resetCredit,/2/); has(resetCredit,/可用|剩余|available|remaining|left/i);
       lacks(resetCredit,/03:00|时区|timezone|UTC|GMT|Z\b/i);
       has(codex,/不可用|暂不可|满|capacity|unavailable/i);
       const counted=section(cp,/Premium requests|高级请求|高级额度/i,/Chat|聊天/i);
       has(counted,/75/); has(counted,/剩余|remaining|left/i); barCheck(counted,75,false);
       const unlimited=section(cp,/Chat|聊天/i,/Completions|补全/i); noBar(unlimited); has(unlimited,/不限|无限|unlimited/i);
-      const zero=section(cp,/Completions|补全/i); noBar(zero); has(zero,/未分配|无.*(?:额度|配额)|没有.*(?:额度|配额)|no.*quota|unallocated/i); lacks(zero,/耗尽|用尽|exhausted|0\s*(?:\/|of)\s*0|100\s*%|报告值|reported\s*(?:value|percent)|severity/i);
+      const zero=section(cp,/Completions|补全/i); noBar(zero); has(zero,/未分配|无.*(?:额度|配额)|没有.*(?:额度|配额)|no.*(?:quota|allocation)|unallocated|not allocated/i); lacks(zero,/耗尽|用尽|exhausted|0\s*(?:\/|of)\s*0|100\s*%|报告值|reported\s*(?:value|percent)|severity/i);
       lacks(cp,/\bCredits\b|额外积分|balance:\s*0|0-0|local messages|cloud messages/i);
       literal(ds,'CNY 48.1200'); lacks(ds,/(?<![\d.])(?:40\.0000|8\.1200)(?![\d.])/);
       lacks(t,/Local cache snapshot|20-30/);
@@ -322,7 +368,7 @@ for (const c of cases) test(c.case_id, () => {
       remainingCheck(group(edges,'Empty remaining','Full remaining'),0);
       remainingCheck(group(edges,'Full remaining','Conflicting figures'),100);
       const conflict=group(edges,'Conflicting figures','Access note'); noBar(conflict); has(conflict,/10/); has(conflict,/20/); has(conflict,/不一致|冲突|矛盾|conflict|inconsistent/i);
-      literal(edges,'EUR 8.2500'); literal(custom,'12%'); noBar(custom); lacks(custom,/88%|剩余\s*12|12%\s*剩余/);
+      literal(edges,'EUR 8.2500'); literal(custom,'12%'); noBar(custom); lacks(custom,/88%|剩余\s*12|12%\s*剩余|12%\s*(?:remaining|left)|(?:remaining|left)\s*:?\s*12%/i);
       break;
     }
     case 'compact_refresh_mixed': {
@@ -353,6 +399,7 @@ for (const c of cases) test(c.case_id, () => {
       has(t,/usage/i); has(t,/JSON/i); has(t,failure);
       literal(t,'truncated response'); has(t,/Codex|openai/i); has(t,config); noBar(t); break;
     case 'vendors_failure':
+      terminalExceptionProbes();
       literal(t,'Usage Survives'); literal(t,'GBP 66.4321');
       has(t,/vendors/i); has(t,failure); literal(t,'gateway unavailable'); noBar(t); break;
     case 'all_failed': {
