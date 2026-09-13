@@ -1,10 +1,22 @@
-# usage for Codex CLI
+<div align="center">
 
-**Check AI quotas, reset times, and balances without leaving your coding session.**
+<h1>usage for Codex CLI</h1>
 
-Type `$usage` in Codex CLI to get a compact report from [ai-usagebar](https://github.com/akitaonrails/ai-usagebar). See what remains across your configured providers and accounts, then ask for details when you need the full report.
+<p>Know what's left. Keep building.</p>
 
-[Install](#install) · [Usage](#usage) · [Troubleshooting](#troubleshooting) · [How it works](docs/compatibility.md)
+<p><strong>English</strong> · <a href="README.zh-CN.md">简体中文</a></p>
+<p><a href="#install">Quick start</a> · <a href="#usage">Usage</a> · <a href="#troubleshooting">Troubleshooting</a></p>
+
+</div>
+
+![Styled terminal preview of synthetic Codex, Copilot, and DeepSeek usage](assets/usage-preview.svg)
+
+Type `$usage` inside Codex CLI to see remaining quotas, reset times, and balances across your configured AI accounts. Powered by [ai-usagebar](https://github.com/akitaonrails/ai-usagebar).
+
+*Styled preview using synthetic test data. Colors are illustrative; CLI reports default to English.*
+
+<details>
+<summary>View the example as plain text</summary>
 
 ```text
 Codex / Work
@@ -23,16 +35,14 @@ DeepSeek / Work
   Balance CNY 48.1200
 ```
 
-*Actual skill output from a synthetic test. Names and amounts are test data; your providers, values, and layout may differ.*
+</details>
 
-## Features
+## At a glance
 
-- **Remaining at a glance.** Compact quota bars, remaining request counts, and reset times, grouped by provider and account.
-- **Balances stay visible.** Paid wallets and currencies remain separate; routine metadata stays out of the default view.
-- **Useful status, less noise.** Unlimited quotas, unallocated quotas, unavailable models, and reset credits get readable status text.
-- **Details when needed.** Original reported values, balance breakdowns, timestamps, and diagnostics are available with `$usage details`.
-- **Honest freshness.** Cached results are marked when refresh fails, with warnings attached to the affected account.
-- **A small installation.** The skill consists of instructions and a reference file. Only the `usage/` folder is needed at runtime.
+| Capacity | Context | Simplicity |
+| :--- | :--- | :--- |
+| Remaining bars and request counts | Reset times and paid balances | One skill, one command |
+| Separate accounts and quota windows | Clear cache and availability status | Full source detail on request |
 
 Provider availability comes from your ai-usagebar installation and configuration. The example shows Codex, GitHub Copilot, and DeepSeek; see [upstream configuration](https://github.com/akitaonrails/ai-usagebar/blob/main/docs/configuration.md) for other providers and account setup.
 
